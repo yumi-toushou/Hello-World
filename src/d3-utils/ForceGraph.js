@@ -6,6 +6,19 @@ export class ForceGraph {
   options = {
     width: 100,
     height: 100,
+    label: {
+      fontSize: 4,
+      padding: 4,
+      height: 8,
+      borderRadius: 2,
+      borderWidth: 1,
+      background: '#fff',
+      borderColor: '#666',
+      fontColor: '#333',
+      arrowWidth: 5,
+      arrowColor: '#666',
+      arrowStrokeColor: '#666'
+    }
   };
 
   // 越小越聚团
@@ -202,7 +215,7 @@ export class ForceGraph {
     this.linksContainer = this.linksContainer
       .data(this.links)
       .join('path')
-      .attr('marker-end', 'url(#Triangle)')
+      // .attr('marker-end', 'url(#Triangle)')
       .attr('marker-start', d => `url(#${d.source.id}-${d.target.id})`)
       .attr("stroke", d => '#666')
       .attr("fill", "none")
@@ -212,36 +225,68 @@ export class ForceGraph {
   }
 
   createLabelDefs() {
+    let {
+      background,
+      borderColor,
+      borderWidth,
+      borderRadius,
+
+      height,
+      padding,
+
+      fontSize,
+      fontColor,
+
+      arrowWidth,
+      arrowColor,
+      arrowStrokeColor } = this.options.label
+
     let label = this.linksLabelContainer
       .append("defs")
       .selectAll('marker')
       .data(this.links)
       .join('marker')
-      .attr('id', d =>  `${d.source.id}-${d.target.id}`)
+      .attr('id', d => `${d.source.id}-${d.target.id}`)
       .attr('refX', '-30')
-      .attr('refY', '4')
-      .attr('markerWidth', '100')
-      .attr('markerHeight', '8')
+      .attr('refY', height / 2)
+      .attr('markerWidth', d => {
+        return calcNodeRect({ text: d.label || '缺失', element: 'text', fontSize: fontSize }).width + padding * 2 + arrowWidth
+      })
+      .attr('markerHeight', height)
       .attr('orient', 'auto')
       .append('g')
 
     label.append('rect')
-      .attr('fill', '#fff')
-      .attr('stroke', '#666')
-      .attr('stroke-width', 1)
-      .attr('x', 1)
-      .attr('y', 1)
-      .attr('rx', 2)
-      .attr('rx', 2)
-      .attr('width', 20)
-      .attr('height', 6)
+      .attr('fill', background)
+      .attr('stroke', borderColor)
+      .attr('stroke-width', borderWidth)
+      .attr('x', borderWidth)
+      .attr('y', borderWidth)
+      .attr('rx', borderRadius)
+      .attr('ry', borderRadius)
+      .attr('height', height - 2 * borderWidth)
+      .attr('width', d => {
+        let width = calcNodeRect({ text: d.label, element: 'text', fontSize: fontSize }).width
+        return (width === 0 ? calcNodeRect({ text: '缺失', element: 'text', fontSize: fontSize }).width : width) + padding * 2 - borderWidth * 2
+      })
 
     label.append('text')
-      .attr('x', 4)
-      .attr('y', 5.5)
-      .attr('font-size', '4')
-      .attr('fill', d => d.label ? '#333' : "red")
-      .text(d => { return d.label || '缺失'})
+      .attr('x', padding)
+      .attr('y', d => {
+        return height / 2 + borderWidth
+      })
+      .attr('font-size', fontSize)
+      .attr('fill', d => d.label ? fontColor : "red")
+      .text(d => { return d.label || '缺失' })
+
+    label.append('path')
+      .attr('d', d => {
+        let start = calcNodeRect({ text: d.label || '缺失', element: 'text', fontSize: fontSize }).width + padding * 2
+        return `M ${start + 1} 2 L ${start + 3.5} 4 L ${start + 1} 6 z`
+      })
+      .attr('fill', arrowColor)
+      .attr('stroke', arrowStrokeColor)
+      .attr('stroke-width', 1)
   }
 
   deleteNode(id) {
@@ -295,4 +340,16 @@ function linkArc(d, {
     M${d.source.x},${d.source.y}
     A${r},${r} 0 0,1 ${d.target.x},${d.target.y}
   `;
+}
+
+// 计算节点的长度和宽度
+function calcNodeRect({ text, element, fontSize }) {
+  let container = d3.select('body').append('svg')
+  let sel = container.append(element)
+    .attr('font-size', fontSize)
+    .text(text).node()
+  let width = sel.getComputedTextLength()
+  // let height = sel.getExtentOfChar(1).height
+  container.remove()
+  return { width }
 }
