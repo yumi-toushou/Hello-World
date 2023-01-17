@@ -17,6 +17,7 @@ export class ForceGraph {
   graphContainer = null;
   nodesContainer = null;
   linksContainer = null;
+  linksLabelContainer = null;
 
   simulation = null;
 
@@ -33,7 +34,7 @@ export class ForceGraph {
     this.createSvgContainer();
 
     this.createSimulation();
-
+    this.createLinksLabelContainer();
     this.createLinksContainer();
     this.createNodesContainer();
 
@@ -70,54 +71,60 @@ export class ForceGraph {
           .id((d) => d.id)
           .distance(this.linkDistance)
       )
-      .force("x", d3.forceX())
-      .force("y", d3.forceY());
+    // .force("x", d3.forceX())
+    // .force("y", d3.forceY());
   }
 
   createNodesContainer() {
     this.nodesContainer = this.graphContainer
       .append("g")
       .attr("class", "nodesContainer")
-      .attr("fill", "#fff000")
-      .attr("stroke", "#000")
+      .attr("fill", "#fff666")
+      .attr("stroke", "#666")
       .attr("stroke-width", 10)
       .selectAll("circle");
 
     this.bindNodesData();
   }
 
+  createLinksLabelContainer() {
+    this.linksLabelContainer = this.graphContainer
+      .append("g")
+      .attr("class", "linksLabelContainer")
+
+    this.createLabelDefs()
+  }
+
   createLinksContainer() {
     this.linksContainer = this.graphContainer
       .append("g")
+      .attr("class", "linksContainer")
       .attr("stroke", "#c2c2c2")
       .attr("stroke-width", 2)
-      .selectAll("line");
+      .selectAll("g");
 
     this.bindLinksData();
   }
 
   ticked() {
     this.simulation.on("tick", () => {
-      this.nodesContainer?.attr("cx", (d) => d.x)?.attr("cy", (d) => d.y);
+      this.nodesContainer?.attr('transform', d => `translate(${d.x},${d.y})`)
 
       this.linksContainer
-        ?.attr("x1", (d) => d.source.x)
-        ?.attr("y1", (d) => d.source.y)
-        ?.attr("x2", (d) => d.target.x)
-        ?.attr("y2", (d) => d.target.y);
+        ?.attr('d', d => linkArc(d, { isArc: false, radius: 50 }))
     });
   }
 
   drag(simulation) {
-    function dragstarted(event) {
+    function dragstarted(event, d) {
       if (!event.active) simulation.alphaTarget(0.3).restart();
-      event.subject.fx = event.subject.x;
-      event.subject.fy = event.subject.y;
+      d.fx = d.x;
+      d.fy = d.y;
     }
 
-    function dragged(event) {
-      event.subject.fx = event.x;
-      event.subject.fy = event.y;
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
     }
 
     function dragended(event) {
@@ -147,8 +154,8 @@ export class ForceGraph {
           })
           .distance(this.linkDistance)
       )
-      .force("x", d3.forceX())
-      .force("y", d3.forceY());
+    // .force("x", d3.forceX())
+    // .force("y", d3.forceY());
 
     this.ticked();
   }
@@ -156,22 +163,85 @@ export class ForceGraph {
   bindNodesData() {
     this.nodesContainer = this.nodesContainer
       .data(this.nodes)
-      .join("circle")
-      .attr("r", 8.5)
+      .join("g")
       .call(this.drag(this.simulation))
+
+    this.nodesContainer.append('circle')
+      .attr("r", 8.5)
       .on("click", (event, data) => {
         console.log("点击了节点", event, data);
         this.delete(data.id);
       });
+
+    this.nodesContainer.append("text")
+      .attr("x", -3)
+      .attr("y", "1.7em")
+      .text(d => d.id)
+      // .clone(true).lower()
+      .attr("fill", "#666")
+      .attr("stroke", "#666")
+      .attr("stroke-width", 1);
   }
 
   bindLinksData() {
+    this.svgContainer
+      .append('defs')
+      .append('marker')
+      .attr('id', 'Triangle')
+      .attr('viewBox', '0 0 10 10')
+      .attr('refX', '27')
+      .attr('refY', '5')
+      .attr('markerWidth', '5')
+      .attr('markerHeight', '4')
+      .attr('fill', '#fff')
+      .attr('stroke', '#666')
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M 0 0 L 10 5 L 0 10 z')
+
     this.linksContainer = this.linksContainer
       .data(this.links)
-      .join("line")
+      .join('path')
+      .attr('marker-end', 'url(#Triangle)')
+      .attr('marker-start', d => `url(#${d.source.id}-${d.target.id})`)
+      .attr("stroke", d => '#666')
+      .attr("fill", "none")
       .on("click", (event, data) => {
         console.log("点击了边", event, data);
       });
+  }
+
+  createLabelDefs() {
+    let label = this.linksLabelContainer
+      .append("defs")
+      .selectAll('marker')
+      .data(this.links)
+      .join('marker')
+      .attr('id', d =>  `${d.source.id}-${d.target.id}`)
+      .attr('refX', '-30')
+      .attr('refY', '4')
+      .attr('markerWidth', '100')
+      .attr('markerHeight', '8')
+      .attr('orient', 'auto')
+      .append('g')
+
+    label.append('rect')
+      .attr('fill', '#fff')
+      .attr('stroke', '#666')
+      .attr('stroke-width', 1)
+      .attr('x', 1)
+      .attr('y', 1)
+      .attr('rx', 2)
+      .attr('rx', 2)
+      .attr('width', 20)
+      .attr('height', 6)
+
+    label.append('text')
+      .attr('x', 4)
+      .attr('y', 5.5)
+      .attr('font-size', '4')
+      .attr('fill', d => d.label ? '#333' : "red")
+      .text(d => { return d.label || '缺失'})
   }
 
   deleteNode(id) {
@@ -213,5 +283,16 @@ export class ForceGraph {
     this.reDraw();
   }
 
-  edit() {}
+  edit() { }
+}
+
+
+function linkArc(d, {
+  isArc, radius = 500
+}) {
+  const r = isArc ? Math.hypot(d.target.x - d.source.x, d.target.y - d.source.y) + radius : 0;
+  return `
+    M${d.source.x},${d.source.y}
+    A${r},${r} 0 0,1 ${d.target.x},${d.target.y}
+  `;
 }
