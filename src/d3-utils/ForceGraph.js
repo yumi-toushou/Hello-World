@@ -34,10 +34,17 @@ export class ForceGraph {
 
   simulation = null;
 
-  constructor(mapId = "", nodes = [], links = [], options = {}) {
+  clickNodeEvent = (event, data) => {}
+  clickLinkEvent = (event, data) => {}
+
+  constructor(mapId = "", nodes = [], links = [], options = {}, events = {clickNodeEvent: '', clickLinkEvent: ''}) {
     this.mapId = mapId;
     this.nodes = nodes;
     this.links = links;
+    
+    this.clickNodeEvent = events?.clickNodeEvent
+    this.clickLinkEvent = events?.clickLinkEvent
+
     this.options = {
       ...this.options,
       ...options,
@@ -45,6 +52,8 @@ export class ForceGraph {
 
     // 创建zoom
     this.createSvgContainer();
+
+    this.createTools()
 
     this.createSimulation();
     this.createLinksLabelContainer();
@@ -155,22 +164,22 @@ export class ForceGraph {
 
   // 通过Graph操作
   reDraw() {
-    this.simulation = d3
-      .forceSimulation(this.nodes)
-      .force("charge", d3.forceManyBody())
-      .force(
-        "link",
-        d3
-          .forceLink(this.links)
-          .id((d) => {
-            return d.id;
-          })
-          .distance(this.linkDistance)
-      )
+    // this.simulation = d3
+    //   .forceSimulation(this.nodes)
+    //   .force("charge", d3.forceManyBody())
+    //   .force(
+    //     "link",
+    //     d3
+    //       .forceLink(this.links)
+    //       .id((d) => {
+    //         return d.id;
+    //       })
+    //       .distance(this.linkDistance)
+    //   )
     // .force("x", d3.forceX())
     // .force("y", d3.forceY());
 
-    this.ticked();
+    // this.ticked();
   }
 
   bindNodesData() {
@@ -179,39 +188,26 @@ export class ForceGraph {
       .join("g")
       .call(this.drag(this.simulation))
 
+    this.nodesContainer.selectAll('circle').remove()
+    this.nodesContainer.selectAll('text').remove()
+
     this.nodesContainer.append('circle')
       .attr("r", 8.5)
       .on("click", (event, data) => {
         console.log("点击了节点", event, data);
-        this.delete(data.id);
+        this.clickNodeEvent && this.clickNodeEvent(event, data)
       });
 
     this.nodesContainer.append("text")
       .attr("x", -3)
       .attr("y", "1.7em")
       .text(d => d.id)
-      // .clone(true).lower()
       .attr("fill", "#666")
       .attr("stroke", "#666")
       .attr("stroke-width", 1);
   }
 
   bindLinksData() {
-    this.svgContainer
-      .append('defs')
-      .append('marker')
-      .attr('id', 'Triangle')
-      .attr('viewBox', '0 0 10 10')
-      .attr('refX', '27')
-      .attr('refY', '5')
-      .attr('markerWidth', '5')
-      .attr('markerHeight', '4')
-      .attr('fill', '#fff')
-      .attr('stroke', '#666')
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('d', 'M 0 0 L 10 5 L 0 10 z')
-
     this.linksContainer = this.linksContainer
       .data(this.links)
       .join('path')
@@ -219,8 +215,10 @@ export class ForceGraph {
       .attr('marker-start', d => `url(#${d.source.id}-${d.target.id})`)
       .attr("stroke", d => '#666')
       .attr("fill", "none")
+      .attr("style", "cursor: pointer;")
       .on("click", (event, data) => {
         console.log("点击了边", event, data);
+        this.clickLinkEvent && this.clickLinkEvent(event, data);
       });
   }
 
@@ -255,7 +253,7 @@ export class ForceGraph {
       .attr('markerHeight', height)
       .attr('orient', 'auto')
       .append('g')
-
+      
     label.append('rect')
       .attr('fill', background)
       .attr('stroke', borderColor)
@@ -269,6 +267,7 @@ export class ForceGraph {
         let width = calcNodeRect({ text: d.label, element: 'text', fontSize: fontSize }).width
         return (width === 0 ? calcNodeRect({ text: '缺失', element: 'text', fontSize: fontSize }).width : width) + padding * 2 - borderWidth * 2
       })
+      
 
     label.append('text')
       .attr('x', padding)
@@ -287,6 +286,23 @@ export class ForceGraph {
       .attr('fill', arrowColor)
       .attr('stroke', arrowStrokeColor)
       .attr('stroke-width', 1)
+  }
+
+  createTools() {
+    this.svgContainer
+      .append('defs')
+      .append('marker')
+      .attr('id', 'Triangle')
+      .attr('viewBox', '0 0 10 10')
+      .attr('refX', '27')
+      .attr('refY', '5')
+      .attr('markerWidth', '5')
+      .attr('markerHeight', '4')
+      .attr('fill', '#fff')
+      .attr('stroke', '#666')
+      .attr('orient', 'auto')
+      .append('path')
+      .attr('d', 'M 0 0 L 10 5 L 0 10 z')
   }
 
   deleteNode(id) {
