@@ -24,7 +24,7 @@ export class ForceGraph {
   // 越小越聚团
   linkDistance = 180;
 
-  // DOM结构：SVG -> G -> nodesG、linksG ....
+  // DOM结构：SVG -> G -> nodesG、linksG、linkLabelG ....
   svgContainer = null;
   // 主空间
   graphContainer = null;
@@ -162,8 +162,8 @@ export class ForceGraph {
       .on("end", dragended);
   }
 
-  // 通过Graph操作
-  reDraw() {
+  // 通过Graph操作节点或连线时进行的重新绘图方法，后续优化
+  // reDraw() {
     // this.simulation = d3
     //   .forceSimulation(this.nodes)
     //   .force("charge", d3.forceManyBody())
@@ -180,7 +180,7 @@ export class ForceGraph {
     // .force("y", d3.forceY());
 
     // this.ticked();
-  }
+  // }
 
   bindNodesData() {
     this.nodesContainer = this.nodesContainer
@@ -188,6 +188,7 @@ export class ForceGraph {
       .join("g")
       .call(this.drag(this.simulation))
 
+    // 添加前先清除节点下所有元素
     this.nodesContainer.selectAll('circle').remove()
     this.nodesContainer.selectAll('text').remove()
 
@@ -201,7 +202,7 @@ export class ForceGraph {
     this.nodesContainer.append("text")
       .attr("x", -3)
       .attr("y", "1.7em")
-      .text(d => d.id)
+      .text(d => d.name || d.id)
       .attr("fill", "#666")
       .attr("stroke", "#666")
       .attr("stroke-width", 1);
@@ -211,18 +212,17 @@ export class ForceGraph {
     this.linksContainer = this.linksContainer
       .data(this.links)
       .join('path')
-      // .attr('marker-end', 'url(#Triangle)')
       .attr('marker-start', d => `url(#${d.source.id}-${d.target.id})`)
       .attr("stroke", d => '#666')
       .attr("fill", "none")
       .attr("style", "cursor: pointer;")
       .on("click", (event, data) => {
-        console.log("点击了边", event, data);
         this.clickLinkEvent && this.clickLinkEvent(event, data);
       });
   }
 
   createLabelDefs() {
+    // 读取标签配置： rect 形成边框 text 设置文字， path绘制箭头；通过marker被连线引用
     let {
       background,
       borderColor,
@@ -289,6 +289,9 @@ export class ForceGraph {
   }
 
   createTools() {
+    // 一些被公共使用的图形marker
+
+    // 三角形
     this.svgContainer
       .append('defs')
       .append('marker')
@@ -306,6 +309,7 @@ export class ForceGraph {
   }
 
   deleteNode(id) {
+    // 从数据中通过节点id删除
     this.nodes = this.nodes.filter((n) => {
       return n.id !== id;
     });
@@ -319,16 +323,21 @@ export class ForceGraph {
   }
 
   // 个性操作: Node
+
+  /**
+   * 添加节点
+  */
   append(nodes, links = []) {
     this.nodes = this.nodes.concat(nodes);
     this.links = this.links.concat(links);
 
     this.bindNodesData();
     this.bindLinksData();
-
-    this.reDraw();
   }
 
+  /**
+   * 删除节点 
+  */
   delete(id) {
     this.deleteNode(id);
     this.deleteLink(
@@ -339,15 +348,10 @@ export class ForceGraph {
 
     this.bindNodesData();
     this.bindLinksData();
-
-    // 是否启动re-draw
-    this.reDraw();
   }
-
-  edit() { }
 }
 
-
+// 生成弯曲的弧线路径
 function linkArc(d, {
   isArc, radius = 500
 }) {
